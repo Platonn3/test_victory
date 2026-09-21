@@ -7,6 +7,8 @@ from app.domain.entities import Allocation, Invoice, MatchReason, MatchResult, P
 from app.domain.matching.references import extract_invoice_numbers
 from app.domain.money import ZERO
 
+_PAYER_INN_MISMATCH_WARNING = "ИНН плательщика отличается от ИНН покупателя"
+
 
 @dataclass(slots=True)
 class MatchingContext:
@@ -25,7 +27,17 @@ class MatchingRule(Protocol):
 
 def _payer_warning(payment: Payment, invoice: Invoice) -> tuple[str, ...]:
     if payment.payer_inn and payment.payer_inn != invoice.customer_inn:
-        return ("ИНН плательщика отличается от ИНН покупателя",)
+        return (_PAYER_INN_MISMATCH_WARNING,)
+    return ()
+
+
+def _payer_warning_for_invoices(
+    payment: Payment, invoices: Sequence[Invoice]
+) -> tuple[str, ...]:
+    if payment.payer_inn and any(
+        payment.payer_inn != invoice.customer_inn for invoice in invoices
+    ):
+        return (_PAYER_INN_MISMATCH_WARNING,)
     return ()
 
 
@@ -86,6 +98,8 @@ class MultipleInvoicesRule:
             return MatchResult(
                 payment.id, (), payment.amount, MatchReason.INVOICE_NOT_FOUND, references
             )
+        referenced_invoices = tuple(context.invoices[number] for number in references)
+        warnings = _payer_warning_for_invoices(payment, referenced_invoices)
         required = sum((context.outstanding[number] for number in references), ZERO)
         if payment.amount < required:
             return MatchResult(
@@ -94,6 +108,7 @@ class MultipleInvoicesRule:
                 payment.amount,
                 MatchReason.MULTIPLE_INVOICE_AMOUNT_MISMATCH,
                 references,
+                warnings,
             )
         allocations = tuple(
             Allocation(
@@ -107,7 +122,7 @@ class MultipleInvoicesRule:
         )
         remainder = payment.amount - required
         reason = MatchReason.OVERPAYMENT if remainder else MatchReason.MULTIPLE_INVOICE_NUMBERS
-        return MatchResult(payment.id, allocations, remainder, reason, references)
+        return MatchResult(payment.id, allocations, remainder, reason, references, warnings)
 
 
 class InnAmountRule:
