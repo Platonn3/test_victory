@@ -56,6 +56,19 @@ def test_one_payment_allocates_to_multiple_invoices() -> None:
     assert result.reason is MatchReason.MULTIPLE_INVOICE_NUMBERS
 
 
+def test_repeated_invoice_labels_do_not_cause_partial_match() -> None:
+    invoices = (make_invoice("160", "40"), make_invoice("161", "60"))
+    payment = make_payment(
+        amount="100", purpose="Оплата по счету №160 и счету №161"
+    )
+    result = engine().match_all((payment,), invoices)[0]
+    assert [allocation.invoice_number for allocation in result.allocations] == [
+        "160",
+        "161",
+    ]
+    assert result.unallocated_amount == Decimal("0.00")
+
+
 def test_multiple_invoice_reference_warns_for_third_party() -> None:
     invoices = (make_invoice("160", "40"), make_invoice("161", "60"))
     payment = make_payment(
