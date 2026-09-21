@@ -3,32 +3,86 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050505">
   <title>Сверка банковских поступлений</title>
   <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
 </head>
-<body>
-  <main class="container narrow">
-    <header>
-      <p class="eyebrow">Финансовый контроль</p>
-      <h1>Сверка банковских поступлений</h1>
-      <p class="lead">Загрузите выписку банка и реестр счетов. Сервис покажет распределение до копейки и не скроет неоднозначные операции.</p>
-    </header>
+<body class="page page-upload">
+  <div class="background-grid" aria-hidden="true"></div>
+  <div class="app-shell">
+    <nav class="topbar" aria-label="Основная навигация">
+      <a class="brand" href="/" aria-label="Viktoria — главная">
+        <span class="brand-mark" aria-hidden="true">V</span>
+        <span class="brand-copy">
+          <strong>VIKTORIA</strong>
+          <small>FINANCE CONTROL</small>
+        </span>
+      </a>
+      <div class="system-state"><span aria-hidden="true"></span>Локальная обработка</div>
+    </nav>
 
-    {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+    <main class="container upload-layout">
+      <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow"><span>01</span> Reconciliation control</p>
+        <h1 id="page-title">Сверка<br><em>банковских</em><br>поступлений</h1>
+        <p class="lead">Детерминированное распределение платежей по счетам — с контролем каждой копейки, явными причинами и безопасной обработкой неоднозначностей.</p>
+        <div class="feature-strip" aria-label="Возможности сервиса">
+          <span>Decimal only</span>
+          <span>Audit ready</span>
+          <span>Excel report</span>
+        </div>
+      </section>
 
-    <form class="upload-card" action="/reconcile" method="post" enctype="multipart/form-data">
-      <label>
-        <span>Банковская выписка</span>
-        <small>CSV из клиент-банка</small>
-        <input type="file" name="statement_file" accept=".csv" required>
-      </label>
-      <label>
-        <span>Реестр счетов</span>
-        <small>Файл Excel</small>
-        <input type="file" name="invoices_file" accept=".xlsx" required>
-      </label>
-      <button type="submit">Запустить сверку</button>
-    </form>
-  </main>
+      <section class="upload-zone" aria-labelledby="upload-title">
+        {% if error %}
+        <div class="alert" role="alert">
+          <span class="alert-mark" aria-hidden="true">!</span>
+          <div><strong>Не удалось выполнить сверку</strong><p>{{ error }}</p></div>
+        </div>
+        {% endif %}
+
+        <form class="upload-card" action="/reconcile" method="post" enctype="multipart/form-data">
+          <header class="panel-heading">
+            <div>
+              <p class="panel-index">INPUT / 01</p>
+              <h2 id="upload-title">Исходные данные</h2>
+            </div>
+            <span class="panel-status">2 файла</span>
+          </header>
+
+          <div class="upload-fields">
+            <label class="file-field">
+              <span class="file-order">01</span>
+              <span class="file-copy">
+                <strong>Банковская выписка</strong>
+                <small id="statement-help">CSV из клиент-банка · до 20 МБ</small>
+              </span>
+              <input type="file" name="statement_file" accept=".csv" aria-describedby="statement-help" required>
+            </label>
+
+            <label class="file-field">
+              <span class="file-order">02</span>
+              <span class="file-copy">
+                <strong>Реестр счетов</strong>
+                <small id="invoices-help">Excel XLSX · до 20 МБ</small>
+              </span>
+              <input type="file" name="invoices_file" accept=".xlsx" aria-describedby="invoices-help" required>
+            </label>
+          </div>
+
+          <button type="submit">
+            <span>Запустить сверку</span>
+            <span class="button-arrow" aria-hidden="true">↗</span>
+          </button>
+          <p class="privacy-note"><span aria-hidden="true"></span>Файлы обрабатываются в памяти и не сохраняются в истории.</p>
+        </form>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>VIKTORIA / FINANCE OPERATIONS</span>
+      <span>DETERMINISTIC MATCHING ENGINE</span>
+    </footer>
+  </div>
 </body>
 </html>
