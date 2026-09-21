@@ -1,6 +1,6 @@
-FROM ghcr.io/astral-sh/uv:0.12.6 AS uv
-
 FROM python:3.12-slim
+
+ARG UV_VERSION=0.12.6
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -8,11 +8,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY --from=uv /uv /uvx /bin/
+RUN python -m pip install --no-cache-dir "uv==${UV_VERSION}"
+
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 COPY app ./app
 
 EXPOSE 8000
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
