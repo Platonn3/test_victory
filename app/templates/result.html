@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Результат сверки</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+</head>
+<body>
+  <main class="container">
+    <header class="result-header">
+      <div>
+        <p class="eyebrow">Сверка завершена</p>
+        <h1>Результат сверки</h1>
+      </div>
+      <div class="actions">
+        <a class="button secondary" href="/">Новая сверка</a>
+        <a class="button" href="/reports/{{ report_id }}">Скачать Excel</a>
+      </div>
+    </header>
+
+    <section class="metrics" aria-label="Итоги">
+      <article><span>Поступления</span><strong>{{ result.total_income|money }} ₽</strong></article>
+      <article><span>Распределено</span><strong>{{ result.total_allocated|money }} ₽</strong></article>
+      <article><span>Не распределено</span><strong>{{ result.total_unallocated|money }} ₽</strong></article>
+      <article><span>Баланс банка</span><strong class="status-ok">{{ "Сходится" if result.balance_check == "ok" else "Нет данных" }}</strong></article>
+    </section>
+
+    <section class="status-grid">
+      <article class="status-card paid"><span>Полностью оплачено</span><strong>{{ result.fully_paid_count }}</strong></article>
+      <article class="status-card partial"><span>Частично оплачено</span><strong>{{ result.partially_paid_count }}</strong></article>
+      <article class="status-card unpaid"><span>Не оплачено</span><strong>{{ result.unpaid_count }}</strong></article>
+    </section>
+
+    {% if result.warnings %}
+    <section class="panel">
+      <h2>Предупреждения</h2>
+      <ul>{% for warning in result.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+
+    <section class="panel">
+      <h2>Нераспределённые поступления</h2>
+      {% if result.unallocated %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Дата</th><th>Документ</th><th>Плательщик</th><th>Сумма</th><th>Причина</th><th>Кандидаты</th></tr></thead>
+          <tbody>
+          {% for item in result.unallocated %}
+            <tr>
+              <td>{{ item.payment.date.strftime("%d.%m.%Y") }}</td>
+              <td>{{ item.payment.document_number }}</td>
+              <td>{{ item.payment.payer_name }}</td>
+              <td class="number">{{ item.amount|money }} ₽</td>
+              <td><code>{{ item.reason.value }}</code></td>
+              <td>{{ item.candidate_invoices|join(", ") }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<p>Все поступления распределены.</p>{% endif %}
+    </section>
+  </main>
+</body>
+</html>
