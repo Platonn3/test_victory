@@ -56,6 +56,16 @@ def test_one_payment_allocates_to_multiple_invoices() -> None:
     assert result.reason is MatchReason.MULTIPLE_INVOICE_NUMBERS
 
 
+def test_multiple_invoice_reference_warns_for_third_party() -> None:
+    invoices = (make_invoice("160", "40"), make_invoice("161", "60"))
+    payment = make_payment(
+        amount="100", purpose="Оплата по сч. 160, 161", inn="9999999999"
+    )
+    result = engine().match_all((payment,), invoices)[0]
+    assert len(result.allocations) == 2
+    assert result.warnings == ("ИНН плательщика отличается от ИНН покупателя",)
+
+
 def test_multiple_invoice_underpayment_is_not_partially_allocated() -> None:
     invoices = (make_invoice("160", "40"), make_invoice("161", "60"))
     payment = make_payment(amount="99", purpose="Оплата по сч. 160, 161")
