@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+import pytest
 from openpyxl import load_workbook
 
 from app.adapters.reports.excel import ExcelReportExporter
@@ -9,6 +10,7 @@ from app.domain.entities import InvoiceBatch, PaymentBatch
 from app.domain.matching.engine import MatchingEngine
 from app.domain.matching.rules import ExplicitInvoiceRule
 from app.domain.validator import ReconciliationValidator
+from app.ports.reports import ReportTooLargeError
 from tests.conftest import make_invoice, make_payment
 
 
@@ -43,3 +45,17 @@ def test_report_store_expires_report() -> None:
     store = InMemoryReportStore(ttl_seconds=0)
     report_id = store.put(b"report")
     assert store.get(report_id) is None
+
+
+def test_report_store_enforces_total_byte_capacity() -> None:
+    store = InMemoryReportStore(max_reports=10, max_total_bytes=5)
+    old = store.put(b"old")
+    new = store.put(b"new")
+    assert store.get(old) is None
+    assert store.get(new) == b"new"
+
+
+def test_report_store_rejects_single_report_over_byte_capacity() -> None:
+    store = InMemoryReportStore(max_total_bytes=5)
+    with pytest.raises(ReportTooLargeError, match="превышает допустимый размер"):
+        store.put(b"report")

@@ -18,7 +18,7 @@ from app.bootstrap.dependencies import (
     get_report_store,
 )
 from app.domain.validator import InvariantViolation
-from app.ports.reports import ReportExporter, ReportStore
+from app.ports.reports import ReportExporter, ReportStore, ReportTooLargeError
 from app.ports.sources import InvoiceSource, PaymentSource
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,14 @@ async def reconcile(
             name="index.html",
             context={"error": f"Нарушена целостность результата сверки: {exc}"},
             status_code=500,
+        )
+    except ReportTooLargeError as exc:
+        logger.error("report storage rejected generated report: %s", exc)
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context={"error": str(exc)},
+            status_code=413,
         )
     except Exception:
         logger.exception("unexpected reconciliation error")
