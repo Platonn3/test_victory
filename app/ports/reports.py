@@ -3,6 +3,10 @@ from typing import Protocol
 from app.domain.entities import ReconciliationResult
 
 
+class ReportTooLargeError(RuntimeError):
+    pass
+
+
 class ReportExporter(Protocol):
     def export(self, result: ReconciliationResult) -> bytes: ...
 

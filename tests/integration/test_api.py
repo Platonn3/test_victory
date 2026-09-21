@@ -5,7 +5,11 @@ from fastapi.testclient import TestClient
 
 from app.adapters.reports.memory_store import InMemoryReportStore
 from app.api.routes import reconciliation as reconciliation_routes
-from app.bootstrap.dependencies import get_reconciliation_service, get_report_store
+from app.bootstrap.dependencies import (
+    get_reconciliation_service,
+    get_report_exporter,
+    get_report_store,
+)
 from app.domain.validator import InvariantViolation
 from app.main import app
 
@@ -14,6 +18,12 @@ class InvariantFailingService:
     def execute(self, *args: object) -> None:
         del args
         raise InvariantViolation("Не сходится общий баланс поступлений")
+
+
+class OversizedReportExporter:
+    def export(self, result: object) -> bytes:
+        del result
+        return b"too large"
 
 
 def test_health() -> None:
@@ -155,5 +165,33 @@ def test_invariant_violation_returns_specific_safe_error(data_dir: Path) -> None
         assert response.status_code == 500
         assert "Нарушена целостность результата сверки" in response.text
         assert "Не сходится общий баланс поступлений" in response.text
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_oversized_generated_report_returns_clear_error(data_dir: Path) -> None:
+    app.dependency_overrides[get_report_exporter] = OversizedReportExporter
+    app.dependency_overrides[get_report_store] = lambda: InMemoryReportStore(
+        max_total_bytes=1
+    )
+    try:
+        with (
+            TestClient(app) as client,
+            (data_dir / "statement_2026_08.csv").open("rb") as statement,
+            (data_dir / "invoices_2026_08.xlsx").open("rb") as invoices,
+        ):
+            response = client.post(
+                "/reconcile",
+                files={
+                    "statement_file": ("statement.csv", statement, "text/csv"),
+                    "invoices_file": (
+                        "invoices.xlsx",
+                        invoices,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    ),
+                },
+            )
+        assert response.status_code == 413
+        assert "Сформированный отчёт превышает допустимый размер" in response.text
     finally:
         app.dependency_overrides.clear()
