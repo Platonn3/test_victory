@@ -37,11 +37,13 @@ class ReconciliationService:
         unique_payments, payment_duplicates = self._deduplicate_payments(payments.payments)
         unique_expenses, expense_duplicates = self._deduplicate_expenses(payments.expenses)
         duplicates = payment_duplicates + expense_duplicates
+        logger.info("duplicates found: %d", len(duplicates))
         total_income = sum((payment.amount for payment in unique_payments), ZERO)
         total_expenses = sum((expense.amount for expense in unique_expenses), ZERO)
         self._validate_bank_controls(payments, total_income, total_expenses)
         matches = self._matcher.match_all(unique_payments, invoices.invoices)
         self._validator.validate(unique_payments, invoices.invoices, matches)
+        logger.info("validation result: ok")
         result = self._build_result(
             unique_payments,
             invoices.invoices,

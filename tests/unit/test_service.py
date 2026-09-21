@@ -1,3 +1,4 @@
+import logging
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
@@ -74,3 +75,16 @@ def test_service_reports_partial_invoice_and_missing_controls() -> None:
     )
     assert result.partially_paid_count == 1
     assert result.balance_check == "not_available"
+
+
+def test_service_logs_duplicates_and_successful_validation(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    payment = make_payment()
+    with caplog.at_level(logging.INFO, logger="app.application.reconciliation"):
+        service().execute(
+            PaymentBatch((payment, replace(payment)), ()),
+            InvoiceBatch((make_invoice(),)),
+        )
+    assert "duplicates found: 1" in caplog.messages
+    assert "validation result: ok" in caplog.messages
