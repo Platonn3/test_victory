@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.adapters.reports.memory_store import InMemoryReportStore
+from app.api.routes import reconciliation as reconciliation_routes
 from app.bootstrap.dependencies import get_reconciliation_service, get_report_store
 from app.domain.validator import InvariantViolation
 from app.main import app
@@ -69,6 +71,66 @@ def test_upload_validation_and_missing_report() -> None:
         )
         assert response.status_code == 400
         assert client.get("/reports/missing").status_code == 404
+
+
+def test_empty_upload_returns_clear_error() -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/reconcile",
+            files={
+                "statement_file": ("statement.csv", b"", "text/csv"),
+                "invoices_file": ("invoices.xlsx", b"x", "application/octet-stream"),
+            },
+        )
+    assert response.status_code == 400
+    assert "Загружен пустой файл" in response.text
+
+
+def test_oversized_upload_returns_clear_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(reconciliation_routes, "MAX_UPLOAD_BYTES", 8)
+    with TestClient(app) as client:
+        response = client.post(
+            "/reconcile",
+            files={
+                "statement_file": ("statement.csv", b"123456789", "text/csv"),
+                "invoices_file": ("invoices.xlsx", b"x", "application/octet-stream"),
+            },
+        )
+    assert response.status_code == 400
+    assert "Размер файла превышает 20 МБ" in response.text
+
+
+def test_broken_csv_returns_clear_error() -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/reconcile",
+            files={
+                "statement_file": ("statement.csv", b"not;a;bank;statement", "text/csv"),
+                "invoices_file": ("invoices.xlsx", b"x", "application/octet-stream"),
+            },
+        )
+    assert response.status_code == 400
+    assert "не найдена таблица операций" in response.text
+
+
+def test_broken_xlsx_returns_clear_error(data_dir: Path) -> None:
+    with (
+        TestClient(app) as client,
+        (data_dir / "statement_2026_08.csv").open("rb") as statement,
+    ):
+        response = client.post(
+            "/reconcile",
+            files={
+                "statement_file": ("statement.csv", statement, "text/csv"),
+                "invoices_file": (
+                    "invoices.xlsx",
+                    b"not an xlsx archive",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ),
+            },
+        )
+    assert response.status_code == 400
+    assert "Не удалось прочитать реестр счетов XLSX" in response.text
 
 
 def test_invariant_violation_returns_specific_safe_error(data_dir: Path) -> None:
